@@ -1,0 +1,306 @@
+
+-. Zabbix 설치 및 구성 참조 사이트: https://www.zabbix.com/download?zabbix=5.2&os_distribution=ubuntu&os_version=20.04_focal&db=mysql&ws=nginx
+git diff example
+
+※ Zabbix 서버
+
+
+-. sudo vim /etc/sysconfig/selinux
+: SELINUX=enforcing        ##   ==>   SELINUX=disabled 로 변경.
+
+
+sudo apt update 
+sudo apt install -y apache2
+sudo systemctl restart apache2.service
+sudo systemctl enable apache2.service
+
+sudo apt install -y mysql-server
+
+sudo mysql
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password by 'dkagh123';
+quit;
+
+sudo mysql_secure_installation
+=> enter passwork: dkagh123
+Press y|Y for Yes, any other key for No: y
+Please enter 0 = LOW, 1 = MEDIUM and 2 = STRONG: 0
+루트 암호를 설정 하시겠습니까? [Y/n]: n
+익명 사용자를 제거하시겠습니까? [Y/n]: Y
+원격으로 루트 로그인을 허용하지 않습니까? [Y/n]: Y
+테스트 데이터베이스를 제거하고 액세스 할 수 있습니까? [Y/n]: Y
+지금 권한 테이블을 다시로드합니까? [Y/n]: Y
+
+
+
+sudo wget https://repo.zabbix.com/zabbix/5.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_5.0-1%2Bfocal_all.deb
+sudo dpkg -i zabbix-release_5.0-1+focal_all.deb
+sudo apt update
+
+sudo apt install -y zabbix-server-mysql zabbix-frontend-php zabbix-apache-conf zabbix-agent
+
+
+
+
+-. sudo mysql -u root -p (root계정 DB 로그인)
+password: dkagh123
+create database zabbix character set utf8 collate utf8_bin; (zabbix데이터 베이스 생성)
+create user zabbix@localhost identified by 'dkagh123'; (zabbix 계정 생성)
+grant all privileges on zabbix.* to zabbix@localhost; (zabbix계정 권한 허용)
+quit;
+
+
+
+-. sudo zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -uzabbix -p zabbix
+=> password: dkagh123 
+
+
+sudo vim /etc/zabbix/zabbix_server.conf
+=> # DBPassword=
+=> DBPassword=dkagh123  로 변경
+
+
+-. sudo vim /etc/zabbix/zabbix_agentd.conf
+=> Server=54.202.152.57  => 패시브 방식 : server가 client로 요청 ex) 로그 외 서비스
+ServerActive=54.202.152.57 => 액티브 방식 : client가 server로 요청 ex) 로그 
+EnableRemoteCommands=1 추가 => 쉘 실행한 값 저장.
+AllowRoot=1 추가 => 보안상 이슈가 어느정도 있지만 로그 수집 시 막히는 문제들 해결 가능.
+
+
+sudo vim /etc/zabbix/apache.conf
+=> # php_value date.timezone Europe/Riga
+=> php_value date.timezone Asia/Seoul  로 변경
+
+
+
+sudo systemctl restart zabbix-server zabbix-agent apache2
+sudo systemctl enable zabbix-server zabbix-agent apache2
+
+
+-. sudo cat /var/log/zabbix/zabbix_server.log
+=> zabbix server 로그 확인이 가능하다.
+
+-. sudo cat /var/log/zabbix/zabbix_agentd.log
+=> zabbix agent 로그 확인이 가능하다.	
+
+
+-. http://Hostname IP/DB username(zabbix) 입력하여 zabbix 사이트 진입.
+ex) http://54.202.152.57/zabbix
+
+
+-. 진입 후
+next -> next -> Password: dkagh123 입력 후 next -> Name: zabbix monitoring 입력 후 next
+next -> finish => 여기까지 환경설정 종료!!
+
+-. Username: Admin / Password: zabbix
+
+
+
+Agent <-> Server 통신으로 이뤄지며 10050 포트
+Server DB 포트: 3306
+zabbix server <-> zabbix 웹 포트: 10051
+apache2: 80
+
+
+
+
+
+
+
+
+
+
+
+
+※ Zabbix 에이전트
+
+
+sudo apt update 
+sudo apt install -y apache2
+sudo systemctl restart apache2.service
+sudo systemctl enable apache2.service
+
+sudo apt install -y mysql-server
+
+sudo mysql
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password by 'dkagh123';
+quit;
+
+sudo mysql_secure_installation
+=> enter passwork: dkagh123
+Press y|Y for Yes, any other key for No: y
+Please enter 0 = LOW, 1 = MEDIUM and 2 = STRONG: 0
+루트 암호를 설정 하시겠습니까? [Y/n]: n
+익명 사용자를 제거하시겠습니까? [Y/n]: Y
+원격으로 루트 로그인을 허용하지 않습니까? [Y/n]: Y
+테스트 데이터베이스를 제거하고 액세스 할 수 있습니까? [Y/n]: Y
+지금 권한 테이블을 다시로드합니까? [Y/n]: Y
+
+-.
+sudo wget https://repo.zabbix.com/zabbix/5.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_5.0-1%2Bfocal_all.deb
+sudo dpkg -i zabbix-release_5.0-1+focal_all.deb
+sudo apt update
+
+
+-. sudo apt install -y zabbix-agent
+
+
+-. sudo vim /etc/zabbix/zabbix_agentd.conf
+=> Server=54.202.152.57  => 패시브 방식 : server가 client로 요청 ex) 로그 외 서비스
+ServerActive=54.202.152.57 => 액티브 방식 : client가 server로 요청 ex) 로그 
+EnableRemoteCommands=1 추가 => 쉘 실행한 값 저장.
+AllowRoot=1 추가 => 보안상 이슈가 어느정도 있지만 로그 수집 시 막히는 문제들 해결 가능.
+
+
+-.
+sudo systemctl restart zabbix-agent
+sudo systemctl enable zabbix-agent
+sudo systemctl status zabbix-agent
+
+
+-. sudo cat /var/log/zabbix/zabbix_agentd.log
+=> zabbix agent 로그파일로 로그 확인 가능하다.
+
+
+-. 자빅스 에이전트 상태 확인
+=> ps -eaf | grep zabbix
+
+
+
+
+
+cf)
+Zabbix Proxy 서버는 Zabbix 서버 대신해서 성능과 가동 상황 데이터를 수집할수 있고 
+프록시는 데이터를 수집하는 부하의 일부를 맡아 Zabbix서버의 부하를 줄여줄수 있습니다. 
+
+ - 원격감시
+ - 분산 모니터링의 유지 보수 간소화
+ - 많은 장비를 모니터링하도록 Zabbix 서버의 부하 경감
+
+
+
+
+
+
+cd /var/www/html/
+
+sudo vim config.inc
+<?php
+\$servername = '35.91.73.72';
+\$username = 'root';
+\$password = 'a123456&';
+\$db_name = 'web';
+
+\$conn = new mysqli( \$servername,\$username,\$password,\$db_name);
+ if (\$conn -> connect_error) {
+         echo 'Disconnected';
+ }
+else{
+         echo 'Connected'; }
+?>
+
+
+mv /home/ubuntu/bbs/* /var/www/html
+
+sudo chmod 666 /etc/apache2/apache2.conf
+
+sudo vim /etc/apache2/apache2.conf
+=> 아래와 같이 해당 행의 내용 '/var/www/html/' 로 수정 후 저장
+170 <Directory /var/www/html/>
+171         Options Indexes FollowSymLinks
+172         AllowOverride None
+173         Require all granted
+174 </Directory>
+
+cd /etc/apache2/sites-available
+
+sudo vim 000-default.conf
+=> 12번째 행을 아래와 같이 수정 후 저장
+ 12         DocumentRoot /var/www/html/
+
+
+위 작업 마무리 후 ' http://35.91.73.72(현 인스턴스 IP) ' 사이트 진입 성공.
+
+
+
+
+
+CREATE DATABASE web CHARACTER SET UTF8; 
+
+use web;
+
+create table member(
+nickname varchar(81) primary key not null,
+id varchar(12) not null,
+password varchar(20) not null
+);
+
+create table board(
+boardnum int(11) primary key auto_increment,
+boardtitle varchar(100) not null,
+boardcontents varchar(3000) not null,
+hit int(11) default '0',
+date varchar(25) not null,
+nickname varchar(81) not null,
+foreign key(nickname) references member(nickname),
+starttime int(11) not null
+);
+
+
+
+
+create table reply(
+replynum int(11) primary key not null,
+replycontents varchar(3000) not null,
+nickname varchar(81) not null,
+starttime int(11) not null,
+boardnum int(11) not null,
+foreign key(nickname) references member(nickname),
+foreign key(boardnum) references board(boardnum)
+);
+
+create table upload(
+realname varchar(600) primary key not null,
+changename varchar(600) not null,
+starttime int(11) not null,
+nickname varchar(81) not null,
+foreign key(nickname) references member(nickname)
+);
+
+
+-. /var/www/html/*.php 파일에 아래 입력하여 모두 수정 완료
+=> 
+<?php include("./config.inc"); ?>
+35.91.73.72
+
+
+
+-. php 추가
+sudo apt-get install software-properties-common
+sudo add-apt-repository ppa:ondrej/php
+
+sudo apt update
+
+sudo apt install -y php7.2 libapache2-mod-php7.2 php7.2-common php7.2-mysql php7.2-gmp php7.2-curl php7.2-intl php7.2-mbstring php7.2-xmlrpc php7.2-mysql php7.2-gd php7.2-xml php7.2-cli php7.2-zip
+
+sudo vim /etc/php/7.2/apache2/php.ini
+=> 아래 값으로 변경 후 저장
+file_uploads = On
+allow_url_fopen = On
+short_open_tag = On
+memory_limit = 256M
+upload_max_filesize = 100M
+max_execution_time = 360
+date.timezone = Asia/Seoul
+
+sudo systemctl restart apache2.service
+
+sudo vim /var/www/html/phpinfo.php
+=> 아래와 같이 입력 후 저장
+<?php phpinfo( ); ?>
+
+
+
+sudo apt install php libapache2-mod-php php-mysql
+
+
+
